@@ -13,6 +13,14 @@ npm start          # http://localhost:3210  (PORT=xxxx to change)
 Open the page, join a room, and send your partner the invite link. Pick seats, a stage and what the driver can see, then
 press **Start stage**.
 
+## Deploy the game site to Netlify
+
+Netlify serves the browser files from `public/` using the included `netlify.toml`. The room server uses persistent
+WebSockets, so it must run on a separate host that supports WebSockets (Netlify Functions are not the room server).
+Deploy `server.js` on that host, then set `window.TWO_LANE_WS_URL` in `public/config.js` to its secure URL, such as
+`wss://your-room-server.example.com`, before deploying this repository to Netlify. The server should accept WebSocket
+connections at `/` and allow the Netlify site as an origin. Use HTTPS/WSS so microphone access works.
+
 To play over the internet, the page must be served over **HTTPS**, because browsers only allow the mic on secure pages. A
 quick option is `cloudflared tunnel --url http://localhost:3210`. Voice is peer-to-peer. On some strict networks it needs
 a TURN server; add one to `ICE_SERVERS` in `public/voice.js`.

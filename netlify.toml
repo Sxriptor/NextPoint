@@ -1,0 +1,5 @@
+[build]
+  publish = "public"
+
+# The game is a static site on Netlify. The WebSocket room server must run
+# separately; set its secure URL in public/config.js before deploying.

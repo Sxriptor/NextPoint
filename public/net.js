@@ -1,6 +1,9 @@
 export function connectNet(room, handlers, onClose) {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${proto}://${location.host}/?room=${encodeURIComponent(room)}`);
+  const configured = window.TWO_LANE_WS_URL?.trim();
+  const endpoint = configured || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+  const url = new URL(endpoint);
+  url.searchParams.set('room', room);
+  const ws = new WebSocket(url);
   ws.onmessage = (e) => {
     let msg;
     try {
