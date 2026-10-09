@@ -1,0 +1,13 @@
+{
+  "name": "two-lane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "2-player co-op low-poly driving game with proximity voice, runs in the browser",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

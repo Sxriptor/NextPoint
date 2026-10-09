@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Two Lane</title>
+  <style>
+    :root {
+      --ink: #1f1b17;
+      --paper: #fff8ef;
+      --muted: #7a6f63;
+      --line: #e3d6c4;
+      --accent: #d9502e;
+      --good: #2f9e58;
+      --bad: #c0392b;
+    }
+    [hidden] { display: none !important; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #a9c9e8; color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    canvas { display: block; }
+    button { font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 10px 16px; cursor: pointer;
+      background: var(--accent); color: #fff; }
+    button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .small { font-size: 13px; color: var(--muted); }
+    .err { color: var(--bad); }
+
+    .overlay { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; overflow-y: auto;
+      background: rgba(31, 27, 23, 0.35); backdrop-filter: blur(2px); z-index: 10; }
+    .card { background: var(--paper); border-radius: 16px; padding: 26px 28px; width: 100%; max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+    .card.wide { max-width: 720px; }
+    .card h1 { margin: 0 0 6px; font-size: 34px; letter-spacing: -0.02em; }
+    .card h2 { margin: 0; font-size: 24px; }
+    .card h3 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .card p { margin: 0 0 14px; line-height: 1.45; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+    input { display: block; width: 100%; margin-top: 4px; padding: 10px 12px; font-size: 16px;
+      border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .spread { justify-content: space-between; }
+
+    .choices { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .choice { text-align: left; background: #fff; color: var(--ink); border: 2px solid var(--line); padding: 10px 12px; font-weight: 400; }
+    .choice b { display: block; margin-bottom: 2px; }
+    .choice span { font-size: 12.5px; color: var(--muted); line-height: 1.35; display: block; }
+    #mapChoices { max-height: 40vh; overflow-y: auto; padding-right: 4px; }
+    .choice .tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 4px; }
+    .choice .tags i { font-style: normal; font-size: 11px; font-weight: 600; color: var(--ink); background: #efe3d2;
+      border-radius: 999px; padding: 1px 7px; }
+
+    /* Stage progress: bottom = start, top = finish, 4 checkpoint sections */
+    #progress { position: fixed; left: 22px; top: 50%; transform: translateY(-50%); height: 56vh; width: 6px;
+      background: rgba(255, 248, 239, 0.45); border-radius: 3px; pointer-events: none; }
+    #progressFill { position: absolute; left: 0; bottom: 0; width: 100%; background: var(--good); border-radius: 3px; }
+    #progressCar { position: absolute; left: 50%; width: 14px; height: 14px; transform: translate(-50%, 50%);
+      background: #fff; border: 3px solid var(--good); border-radius: 50%; }
+    #progress .cp { position: absolute; left: -5px; width: 16px; height: 3px; background: #fff; transform: translateY(50%); }
+    #progress .cp span { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); white-space: nowrap;
+      font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.7); }
+    #progress .cp .cp-time { left: 22px; top: calc(50% + 14px); font-weight: 600; font-variant-numeric: tabular-nums; }
+    #progress .cp.done { background: var(--good); }
+    #progress .cp.done .cp-label { color: #b8f5c8; }
+    #pause .card { max-width: 380px; }
+    #pause .stack { display: grid; gap: 8px; margin: 16px 0 6px; }
+    #pause select, #pause input[type=range] { width: 100%; margin-top: 6px; }
+    #pause select { padding: 8px; border-radius: 8px; border: 1px solid var(--line); font: inherit; background: #fff; }
+    #pause input[type=checkbox] { display: inline-block; width: auto; margin: 0 5px 0 0; vertical-align: middle; }
+    .choice.on { border-color: var(--accent); background: #fff3ec; }
+    .seat .who { font-size: 13px; color: var(--muted); }
+    .seat.mine .who { color: var(--accent); font-weight: 700; }
+    #startBtn { margin-top: 18px; width: 100%; padding: 14px; font-size: 17px; }
+
+    .hud-panel { position: fixed; background: rgba(255, 248, 239, 0.85); border-radius: 10px; padding: 8px 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12); font-size: 14px; pointer-events: none; }
+    #timerBox { top: 12px; left: 50%; transform: translateX(-50%); text-align: center; }
+    #timer { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    #pen { font-size: 12px; color: var(--muted); }
+    #partnerBox { top: 12px; right: 12px; text-align: right; }
+    #help { bottom: 12px; left: 12px; max-width: min(560px, 70vw); transition: opacity 1s; }
+    .meter { height: 4px; background: #e6dccd; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    #micMeter { height: 100%; width: 0; background: #3aa66a; }
+    #center { position: fixed; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 64px; font-weight: 900;
+      color: #fff; text-shadow: 0 4px 18px rgba(0,0,0,0.5); pointer-events: none; text-align: center; padding: 0 16px; }
+    #center.small-msg { font-size: 30px; }
+    #lookHint { position: fixed; top: 12%; left: 50%; transform: translateX(-50%); color: #fff; font-weight: 700;
+      background: rgba(0,0,0,0.45); padding: 8px 14px; border-radius: 8px; pointer-events: none; }
+    #blind { position: fixed; inset: 0; background: #050505; display: grid; place-items: center; color: #8a8580;
+      text-align: center; font-size: 18px; line-height: 1.6; pointer-events: none; }
+    #blind b { color: #d9d4cc; font-size: 28px; display: block; }
+    #toast { position: fixed; top: 74px; left: 50%; transform: translate(-50%, -140px); transition: transform .25s;
+      background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 10px; font-weight: 600; z-index: 20; }
+    #toast.show { transform: translate(-50%, 0); }
+    #loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 22px; font-weight: 700; color: #fff;
+      background: rgba(20,18,16,0.55); z-index: 30; }
+    .results { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; margin: 14px 0 18px; font-size: 16px; }
+    .results .total { font-size: 28px; font-weight: 800; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="start" class="overlay">
+    <div class="card">
+      <h1>Two Lane</h1>
+      <p>A two-player rally. One of you drives, the other navigates with the only map. The driver can't see the route, and
+        on some settings can't see much of anything. Talk to each other.</p>
+      <label>Room name
+        <input id="roomInput" autocomplete="off" spellcheck="false">
+      </label>
+      <div class="row">
+        <button id="joinBtn">Join with mic</button>
+        <button id="joinNoMic" class="secondary">Join without mic</button>
+      </div>
+      <p class="small" style="margin-top:14px">Your partner joins the same room name or opens your invite link. Headphones recommended.</p>
+      <p id="startMsg" class="small err"></p>
+    </div>
+  </div>
+
+  <div id="lobby" class="overlay" hidden>
+    <div class="card wide">
+      <div class="row spread">
+        <h2>Room <span id="roomName"></span></h2>
+        <button id="copyLink" class="secondary">Copy invite link</button>
+      </div>
+      <h3>Seats</h3>
+      <div class="choices" id="seatChoices"></div>
+      <h3>Stage</h3>
+      <div class="choices" id="mapChoices"></div>
+      <h3>What the driver can see</h3>
+      <div class="choices" id="visChoices"></div>
+      <button id="startBtn">Start stage</button>
+      <p id="lobbyMsg" class="small" style="margin:10px 0 0"></p>
+    </div>
+  </div>
+
+  <div id="results" class="overlay" hidden>
+    <div class="card">
+      <h2 id="resultsTitle">Stage complete</h2>
+      <div class="results" id="resultsBody"></div>
+      <button id="toLobbyBtn">Back to lobby</button>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay" hidden>
+    <div class="card">
+      <h2>Paused</h2>
+      <p id="pausedBy" class="small" style="margin:6px 0 0"></p>
+      <div class="stack">
+        <button id="resumeBtn">Resume</button>
+        <button id="restartBtn" class="secondary">Restart stage</button>
+        <button id="quitBtn" class="secondary">Quit to lobby</button>
+      </div>
+      <h3>Settings</h3>
+      <label>Mouse sensitivity
+        <input id="sens" type="range" min="0.3" max="3" step="0.1">
+      </label>
+      <label>Gearbox (when you drive)
+        <select id="gearbox">
+          <option value="manual">Manual: E up, Q down</option>
+          <option value="auto">Automatic</option>
+        </select>
+      </label>
+      <h3>Steering wheel</h3>
+      <p class="small">Connect the wheel before opening the game. Select the axis numbers reported by your browser. No force feedback is used.</p>
+      <label>Controller
+        <select id="wheelIndex"><option value="0">Controller 1</option><option value="1">Controller 2</option><option value="2">Controller 3</option><option value="3">Controller 4</option></select>
+      </label>
+      <div class="row">
+        <label style="flex:1">Steering axis<input id="wheelAxis" type="number" min="0" max="15" step="1"></label>
+        <label style="flex:1">Throttle axis<input id="wheelThrottleAxis" type="number" min="-1" max="15" step="1"><span class="small">-1 uses pedal button</span></label>
+        <label style="flex:1">Brake axis<input id="wheelBrakeAxis" type="number" min="-1" max="15" step="1"><span class="small">-1 uses pedal button</span></label>
+      </div>
+      <label><input id="wheelInvertSteer" type="checkbox"> Reverse steering direction</label>
+      <label><input id="wheelInvertThrottle" type="checkbox"> Invert throttle pedal</label>
+      <label><input id="wheelInvertBrake" type="checkbox"> Invert brake pedal</label>
+      <p class="small" style="margin:0">Esc resumes. Pausing pauses the stage for both players.</p>
+    </div>
+  </div>
+
+  <div id="hud" hidden>
+    <div id="progress"><div id="progressFill"></div><div id="progressTicks"></div><div id="progressCar"></div></div>
+    <div id="blind" hidden><div><b>Blindfolded</b>Listen to your navigator.<br>W/S throttle and brake · A/D steer</div></div>
+    <div id="timerBox" class="hud-panel"><div id="timer">0:00.0</div><div id="pen"></div></div>
+    <div id="partnerBox" class="hud-panel">
+      <div id="partnerStatus"></div>
+      <div id="voiceStatus" class="small"></div>
+      <div class="meter"><div id="micMeter"></div></div>
+    </div>
+    <div id="help" class="hud-panel"></div>
+    <div id="center"></div>
+    <div id="lookHint" hidden>Click to look around</div>
+  </div>
+  <div id="loading" hidden>Building stage…</div>
+  <div id="toast"></div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
